@@ -158,7 +158,7 @@ def judge(img):
     # target_path = 'images_right_3/img_10.jpg'
     img_path = './fingerPrint_images/registered_fingers/srz/'
     #panorama_paths = os.listdir(img_path)
-    panorama_paths = ['right_1.jpg', 'right_2.jpg', 'right_3.jpg', 'right_4.jpg', 'right_5.jpg', 'left_2.jpg', 'left_3.jpg','left_5.jpg']
+    panorama_paths = ['right_1.jpg', 'right_2.jpg', 'right_3.jpg', 'right_4.jpg', 'right_5.jpg', 'left_2.jpg', 'left_3.jpg','left_5.jpg','right_index_2.jpg','right_ring_2.jpg']
     # target_img = cv2.imread(target_path, 0)
     target_img = img
     panorama_imgs = [cv2.imread(img_path + path, 0) for path in panorama_paths]

@@ -7,7 +7,6 @@ from driver_fpc1020am import DriverFPC1020AM, typing
 from find_best_match import judge
 from fingerPrint_generate_SIFT import single_match, crop_non_zero_area
 
-
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
@@ -41,7 +40,6 @@ class GUI:
 
         self.canvas = np.zeros((576, 576), dtype=np.float32)
         self.overlap_count = np.zeros_like(self.canvas, dtype=np.int32)
-        self.overlap_mask = np.zeros_like(self.canvas)
         self.is_registering = False
 
         self.typing_mode = False
@@ -78,9 +76,11 @@ class GUI:
         self.clear_button = tk.Button(self.root, text='清空', font=font_settings, command=self.clear_text)
         self.clear_button.place(x=600, y=520, width=80, height=50)
 
-        self.control_frame = tk.Frame(root)
+        self.control_frame = tk.Frame(self.root)
         self.control_frame.place(x=250, y=500, width=300, height=200)
 
+        self.info_label = tk.Label(self.root, text='', font = ('宋体', 20), bg='white')
+        self.info_label.place(x=250, y=450)
         # 多行输入框    
         self.text = tk.Text(self.control_frame, wrap="word", font=("Arial", 20), width=30, height=8)
         self.text.pack(pady=10)
@@ -124,21 +124,21 @@ class GUI:
                         self.finger1 = finger
                         if self.finger1 == 0:
                             self.finger_count = 2
-                            print(f'finger1 = {self.finger1} 空格')
+                            self.info_label.config(text=f'finger1 = {self.finger1} 空格')
                         else:
                             self.finger_count = 1
-                            print(f'finger1 = {self.finger1}请输入第二个指纹')
+                            self.info_label.config(text=f'finger1 = {self.finger1} 请输入第二个指纹')
                 elif self.finger_count == 1:
                     self.finger2 = finger
                     self.finger_count = 2
-                    print(f'finger2 = {self.finger2}')
+                    self.info_label.config(text=f'finger1 = {self.finger1}  finger2 = {self.finger2}')
                 if self.finger_count == 2:
                     letter, self.finger1, self.finger2 = typing(self.finger1, self.finger2)
                     self.finger_count = 0
                     if letter is not None:
                         self.text.insert("end", letter)
             else:
-                print('识别该指纹失败，请重新输入！')
+                self.info_label.config(text='未识别到指纹')
 
     def stop_typing(self):
         self.typing_mode = False
@@ -239,7 +239,7 @@ class GUI:
         register_result.place(x=50, y=270)
 
         def confirm():
-            is_matched, self.img_on_canvas, self.canvas, self.overlap_mask, self.overlap_count = single_match(self.temp_img, self.img_on_canvas, self.canvas, self.overlap_mask, self.overlap_count)
+            is_matched, self.img_on_canvas, self.canvas, self.overlap_count = single_match(self.temp_img, self.img_on_canvas, self.canvas, self.overlap_count)
             if is_matched:
                 img_tk = ImageTk.PhotoImage(Image.fromarray(self.canvas).resize((600, 600)))
                 self.large_img_register_label.img_tk = img_tk  # 绑定 img_tk 避免被回收
@@ -261,7 +261,6 @@ class GUI:
             self.img_on_canvas = 0
             self.canvas = np.zeros((576, 576), dtype=np.float32)
             self.overlap_count = np.zeros_like(self.canvas, dtype=np.int32)
-            self.overlap_mask = np.zeros_like(self.canvas)
             self.is_registering = False
             register_window.destroy()
             self.root.deiconify()
@@ -270,7 +269,6 @@ class GUI:
             self.img_on_canvas = 0
             self.canvas = np.zeros((576, 576), dtype=np.float32)
             self.overlap_count = np.zeros_like(self.canvas, dtype=np.int32)
-            self.overlap_mask = np.zeros_like(self.canvas)
             self.large_img_register_label.img_tk = None
             self.large_img_register_label.config(image=None)
 
@@ -289,7 +287,8 @@ class GUI:
         self.driver.__del__()
         self.root.destroy()
 
-root = tk.Tk()
-app = GUI(root)
-root.protocol("WM_DELETE_WINDOW", app.on_close)
-root.mainloop()
+if __name__ == '__main__':
+    root = tk.Tk()
+    app = GUI(root)
+    root.protocol("WM_DELETE_WINDOW", app.on_close)
+    root.mainloop()

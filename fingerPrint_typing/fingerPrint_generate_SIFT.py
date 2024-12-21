@@ -7,8 +7,8 @@ max_valid_pixel = 255
 
 
 def get_useful_mask(img):
-    # max_pixel = np.max(img)
-    useful_mask = img < max_valid_pixel - 15  # 去掉白色边界
+    # max_pixel = np.max(img)7
+    useful_mask = img < max_valid_pixel - 10  # 去掉白色边界
     useful_mask = useful_mask.astype(np.uint8)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
     useful_mask = cv2.erode(useful_mask, kernel, iterations=1)
@@ -83,8 +83,8 @@ def add_to_canvas(canvas, img, offset_x, offset_y, overlap_count, max_overlaps=3
     # 仅对叠加次数小于 max_overlaps 的区域进行操作                                      ## 尝试在这里去掉白色无用边界
     #useful_mask = get_useful_mask(img)  # 去掉白色边界的mask
     valid_mask = overlap_region < max_overlaps
-    overlap_mask = valid_mask & (target_region > 0) & (img > 0)
-    non_overlap_mask = valid_mask & (target_region == 0) & (img > 0)
+    overlap_mask = valid_mask & (target_region > 0) & (img > 0) & get_useful_mask(img)
+    non_overlap_mask = valid_mask & (target_region == 0) & (img > 0) & get_useful_mask(img)
     #overlap_mask = valid_mask & (target_region > 0) & useful_mask
     #non_overlap_mask = valid_mask & (target_region == 0) & useful_mask
 
@@ -104,41 +104,6 @@ def add_to_canvas(canvas, img, offset_x, offset_y, overlap_count, max_overlaps=3
 
     # 返回更新后的画布和叠加次数图，方便迭代；同时返回此次拼接的位置
     return canvas, offset_x - extend_left, offset_y - extend_top, overlap_count
-
-
-def update_overlap_mask(overlap_mask, img, offset_x, offset_y, overlap_count, max_overlaps=3):
-    h, w = img.shape
-    mask_h, mask_w = overlap_mask.shape
-
-    if (offset_y + h > mask_h) or (offset_x + w > mask_w):
-        new_mask = np.zeros((max(mask_h, offset_y + h),
-                             max(mask_w, offset_x + w)),
-                            dtype=np.float32)
-        new_mask[:mask_h, :mask_w] = overlap_mask
-        overlap_mask = new_mask
-
-        new_overlap_count = np.zeros_like(new_mask, dtype=np.int32)
-        new_overlap_count[:mask_h, :mask_w] = overlap_count
-        overlap_count = new_overlap_count
-
-    # 创建羽化边缘的掩码
-    feather_width = 3
-    edge_mask = np.ones((h, w), dtype=np.float32)
-    edge_mask[:feather_width, :] *= np.linspace(0, 1, feather_width)[:, np.newaxis]
-    edge_mask[-feather_width:, :] *= np.linspace(1, 0, feather_width)[:, np.newaxis]
-    edge_mask[:, :feather_width] *= np.linspace(0, 1, feather_width)
-    edge_mask[:, -feather_width:] *= np.linspace(1, 0, feather_width)
-
-    mask = (img > 0).astype(np.float32) * edge_mask
-
-    # 仅对叠加次数小于 max_overlaps 的区域进行更新，同步使用useful_mask
-    valid_mask = overlap_count[offset_y:offset_y + h, offset_x:offset_x + w] < max_overlaps
-    overlap_mask[offset_y:offset_y + h, offset_x:offset_x + w][valid_mask] += mask[valid_mask]
-    #overlap_count[offset_y:offset_y + h, offset_x:offset_x + w][valid_mask] += get_useful_mask(img)[valid_mask]
-    overlap_count[offset_y:offset_y + h, offset_x:offset_x + w][valid_mask] += (img > 0)[valid_mask]
-
-    return overlap_mask, overlap_count
-
 
 def extract_valid_region(img):
     """
@@ -226,7 +191,7 @@ def match_with_canvas(canvas, img2, min_matches=5):
     return transform, (canvas_x, canvas_y)
 
 
-def check_and_extend_canvas(canvas, overlap_mask, overlap_count, transform, img_shape):
+def check_and_extend_canvas(canvas, overlap_count, transform, img_shape):
     """
     检查并扩展画布，确保变换后的图像完全显示
     """
@@ -264,17 +229,16 @@ def check_and_extend_canvas(canvas, overlap_mask, overlap_count, transform, img_
         # 复制原有内容到新画布
         new_canvas[extend_top:extend_top + canvas_h,
         extend_left:extend_left + canvas_w] = canvas
-        new_overlap_mask[extend_top:extend_top + canvas_h,
-        extend_left:extend_left + canvas_w] = overlap_mask
+
         new_overlap_count[extend_top:extend_top + canvas_h,
         extend_left:extend_left + canvas_w] = overlap_count
         # 调整变换矩阵以考虑画布扩展
         transform[0, 2] += extend_left
         transform[1, 2] += extend_top
 
-        return new_canvas, new_overlap_mask, new_overlap_count, transform, True
+        return new_canvas, new_overlap_count, transform, True
 
-    return canvas, overlap_mask, overlap_count, transform, False
+    return canvas, overlap_count, transform, False
 
 # 裁剪掉所有灰度值为0的区域
 def crop_non_zero_area(image):
@@ -295,7 +259,7 @@ def crop_non_zero_area(image):
 
     return cropped_img
 
-def single_match(img, img_count, canvas, overlap_mask, overlap_count):
+def single_match(img, img_count, canvas, overlap_count):
     is_matched = False
     if img is not None:
         h, w = img.shape
@@ -309,10 +273,9 @@ def single_match(img, img_count, canvas, overlap_mask, overlap_count):
             
             # 添加第一张图像
             canvas, _, _, overlap_count = add_to_canvas(canvas, img, img_x, img_y, overlap_count, 4)
-            overlap_mask, overlap_count = update_overlap_mask(overlap_mask, img, img_x, img_y, overlap_count, 4)
             img_count += 1
             is_matched = True
-            return is_matched, img_count, canvas, overlap_mask, overlap_count
+            return is_matched, img_count, canvas,  overlap_count
 
         else:
             # 尝试与画布匹配
@@ -320,8 +283,8 @@ def single_match(img, img_count, canvas, overlap_mask, overlap_count):
             
             if transform is not None:
                 # 检查并在必要时扩展画布
-                canvas, overlap_mask, overlap_count, transform, was_extended = check_and_extend_canvas(
-                    canvas, overlap_mask, overlap_count, transform, img.shape)
+                canvas, overlap_count, transform, was_extended = check_and_extend_canvas(
+                    canvas, overlap_count, transform, img.shape)
                 
                 # 执行仿射变换
                 img_warped = cv2.warpAffine(img, transform, 
@@ -332,15 +295,14 @@ def single_match(img, img_count, canvas, overlap_mask, overlap_count):
                 
                 # 添加到画布
                 canvas, _, _, overlap_count = add_to_canvas(canvas, img_warped, 0, 0, overlap_count, 4)
-                overlap_mask, overlap_count = update_overlap_mask(overlap_mask, img_warped, 0, 0, overlap_count, 4)
                 img_count += 1
                 is_matched = True
 
-                return is_matched, img_count, canvas, overlap_mask, overlap_count
+                return is_matched, img_count, canvas, overlap_count
             else:
-                return is_matched, img_count, canvas, overlap_mask, overlap_count
+                return is_matched, img_count, canvas, overlap_count
     else:
-        return is_matched, img_count, canvas, overlap_mask, overlap_count
+        return is_matched, img_count, canvas, overlap_count
 
 def main(read_path, finger):
     # 读取图像
@@ -360,7 +322,6 @@ def main(read_path, finger):
     h, w = images[0].shape
     canvas = np.zeros((h * 3, w * 3), dtype=np.float32)
     overlap_count = np.zeros_like(canvas, dtype=np.int32)
-    overlap_mask = np.zeros_like(canvas)
 
     # 将第一张图像放在画布中央
     canvas_center_x = canvas.shape[1] // 2
@@ -370,7 +331,6 @@ def main(read_path, finger):
 
     # 添加第一张图像
     canvas, _, _, overlap_count = add_to_canvas(canvas, images[0], img_x, img_y, overlap_count, 4)
-    overlap_mask, overlap_count = update_overlap_mask(overlap_mask, images[0], img_x, img_y, overlap_count, 4)
 
     # 记录已成功拼接的图像
     stitched_images = {0}
@@ -389,8 +349,8 @@ def main(read_path, finger):
 
             if transform is not None:
                 # 检查并在必要时扩展画布
-                canvas, overlap_mask, overlap_count, transform, was_extended = check_and_extend_canvas(
-                    canvas, overlap_mask, overlap_count, transform, images[idx].shape)
+                canvas,  overlap_count, transform, was_extended = check_and_extend_canvas(
+                    canvas, overlap_count, transform, images[idx].shape)
 
                 # 执行仿射变换
                 img_warped = cv2.warpAffine(images[idx], transform,
@@ -401,7 +361,7 @@ def main(read_path, finger):
 
                 # 添加到画布
                 canvas, _, _, overlap_count = add_to_canvas(canvas, img_warped, 0, 0, overlap_count, 4)
-                overlap_mask, overlap_count = update_overlap_mask(overlap_mask, img_warped, 0, 0, overlap_count, 4)
+
                 stitched_images.add(idx)
                 progress_made = True
 
