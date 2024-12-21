@@ -272,7 +272,7 @@ def check_and_extend_canvas(canvas, overlap_mask, overlap_count, transform, img_
 
     return canvas, overlap_mask, overlap_count, transform, False
 
-
+# 裁剪掉所有灰度值为0的区域
 def crop_non_zero_area(image):
     # 读取图片并转换为灰度图
     img = image
@@ -291,6 +291,52 @@ def crop_non_zero_area(image):
 
     return cropped_img
 
+def single_match(img, img_count, canvas, overlap_mask, overlap_count):
+    is_matched = False
+    if img is not None:
+        h, w = img.shape
+        if img_count == 0:
+
+            # 将第一张图像放在画布中央
+            canvas_center_x = canvas.shape[1] // 2
+            canvas_center_y = canvas.shape[0] // 2
+            img_x = canvas_center_x - (w // 2)
+            img_y = canvas_center_y - (h // 2)
+            
+            # 添加第一张图像
+            canvas, _, _, overlap_count = add_to_canvas(canvas, img, img_x, img_y, overlap_count, 4)
+            overlap_mask, overlap_count = update_overlap_mask(overlap_mask, img, img_x, img_y, overlap_count, 4)
+            img_count += 1
+            is_matched = True
+            return is_matched, img_count, canvas, overlap_mask, overlap_count
+
+        else:
+            # 尝试与画布匹配
+            transform, (canvas_x, canvas_y) = match_with_canvas(canvas, img)
+            
+            if transform is not None:
+                # 检查并在必要时扩展画布
+                canvas, overlap_mask, overlap_count, transform, was_extended = check_and_extend_canvas(
+                    canvas, overlap_mask, overlap_count, transform, img.shape)
+                
+                # 执行仿射变换
+                img_warped = cv2.warpAffine(img, transform, 
+                                        (canvas.shape[1], canvas.shape[0]),
+                                        flags=cv2.INTER_LINEAR,
+                                        borderMode=cv2.BORDER_CONSTANT,
+                                        borderValue=0)
+                
+                # 添加到画布
+                canvas, _, _, overlap_count = add_to_canvas(canvas, img_warped, 0, 0, overlap_count, 4)
+                overlap_mask, overlap_count = update_overlap_mask(overlap_mask, img_warped, 0, 0, overlap_count, 4)
+                img_count += 1
+                is_matched = True
+
+                return is_matched, img_count, canvas, overlap_mask, overlap_count
+            else:
+                return is_matched, img_count, canvas, overlap_mask, overlap_count
+    else:
+        return is_matched, img_count, canvas, overlap_mask, overlap_count
 
 def main(read_path, finger):
     # 读取图像
@@ -357,8 +403,8 @@ def main(read_path, finger):
 
                 # 显示拼接进度
                 temp_canvas = canvas.copy()
-                mask = (overlap_mask > 0)
-                # temp_canvas[mask] /= overlap_mask[mask]
+                #mask = (overlap_mask > 0)
+                #temp_canvas[mask] /= overlap_mask[mask]
                 temp_display = np.clip(temp_canvas, 0, 255).astype(np.uint8)
                 cv2.imshow("Stitching Progress", temp_display)
                 cv2.waitKey(1)
@@ -368,8 +414,8 @@ def main(read_path, finger):
             break
 
     # 处理最终结果
-    mask = (overlap_mask > 0)
-    # canvas[mask] /= overlap_mask[mask]
+    #mask = (overlap_mask > 0)
+    #canvas[mask] /= overlap_mask[mask]
     result = np.clip(canvas, 0, 255).astype(np.uint8)
 
     # 裁剪空白边界，保留一定边距
@@ -393,12 +439,12 @@ def main(read_path, finger):
     cv2.waitKey(10000)  # 留出10秒确认拼接好的图片
     cv2.destroyAllWindows()
     # 保存拼接结果
-    cv2.imwrite(f'./images/registed_fingers/{finger}.jpg', result)
+    cv2.imwrite(f'../fingerPrint_images/registered_fingers/{finger}.jpg', result)
     print(f"成功拼接了 {len(stitched_images)} 张图像")
 
 
 if __name__ == '__main__':
-    path = "./images/finger_imgs/"
+    path = "../fingerPrint_images/images_to_generate/"
     fingers = os.listdir(path)
     for finger in fingers:
         main(path+finger, finger)

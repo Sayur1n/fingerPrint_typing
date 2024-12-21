@@ -14,7 +14,7 @@ from find_best_match import judge
 class DriverFPC1020AM:
     DRIVER_EXE_NAME = "DriverFPC1020AM.exe"
     SHARED_MEM_NAME = "FPC1020AM_SHARED_MEMORY_0"
-    RUN_SERVER_COMMAND = [str(Path(__file__).parents[1] / "sensor" / DRIVER_EXE_NAME)] + ['0']
+    RUN_SERVER_COMMAND = [str(Path(__file__).parents[0] / 'sensor' / DRIVER_EXE_NAME)] + ['0']    ###################
     print(RUN_SERVER_COMMAND)
     KILL_SERVER_COMMAND = ["taskkill", "/im", DRIVER_EXE_NAME, "/f"]
 
@@ -37,7 +37,7 @@ class DriverFPC1020AM:
             live_preview: Whether to show the live preview.
             verbose: Whether to print verbose information.
         """
-
+        #print(self.RUN_SERVER_COMMAND)
         self.verbose = verbose
 
         self.start_fpc1020am_server()
