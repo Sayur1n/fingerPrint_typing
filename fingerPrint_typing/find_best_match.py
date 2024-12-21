@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import os
 
-min_matches = 20
+min_matches = 10
 
 
 def locate_patch_in_panorama(patch_img, panorama_img):
@@ -156,9 +156,9 @@ def judge(img):
     # Load target and panoramic images
     # target_path = 'images_to_test/img_4.jpg'
     # target_path = 'images_right_3/img_10.jpg'
-    img_path = './images/registed_fingers/'
-    panorama_paths = os.listdir(img_path)
-
+    img_path = './fingerPrint_images/registered_fingers/srz/'
+    #panorama_paths = os.listdir(img_path)
+    panorama_paths = ['right_1.jpg', 'right_2.jpg', 'right_3.jpg', 'right_4.jpg', 'right_5.jpg', 'left_2.jpg', 'left_3.jpg','left_5.jpg']
     # target_img = cv2.imread(target_path, 0)
     target_img = img
     panorama_imgs = [cv2.imread(img_path + path, 0) for path in panorama_paths]

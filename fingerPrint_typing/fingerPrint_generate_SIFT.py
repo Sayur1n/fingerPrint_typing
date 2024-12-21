@@ -81,10 +81,12 @@ def add_to_canvas(canvas, img, offset_x, offset_y, overlap_count, max_overlaps=3
     overlap_region = overlap_count[offset_y:offset_y + h, offset_x:offset_x + w]
 
     # 仅对叠加次数小于 max_overlaps 的区域进行操作                                      ## 尝试在这里去掉白色无用边界
-    useful_mask = get_useful_mask(img)  # 去掉白色边界的mask
+    #useful_mask = get_useful_mask(img)  # 去掉白色边界的mask
     valid_mask = overlap_region < max_overlaps
-    overlap_mask = valid_mask & (target_region > 0) & useful_mask
-    non_overlap_mask = valid_mask & (target_region == 0) & useful_mask
+    overlap_mask = valid_mask & (target_region > 0) & (img > 0)
+    non_overlap_mask = valid_mask & (target_region == 0) & (img > 0)
+    #overlap_mask = valid_mask & (target_region > 0) & useful_mask
+    #non_overlap_mask = valid_mask & (target_region == 0) & useful_mask
 
     # 在重叠区域使用加权混合
     if np.any(overlap_mask):
@@ -97,7 +99,8 @@ def add_to_canvas(canvas, img, offset_x, offset_y, overlap_count, max_overlaps=3
     target_region[non_overlap_mask] = img[non_overlap_mask]
 
     # 更新叠加计数，这里也用上useful_mask
-    overlap_region[valid_mask & useful_mask] += 1
+    #overlap_region[valid_mask & useful_mask] += 1
+    overlap_region[valid_mask & (img > 0)] += 1
 
     # 返回更新后的画布和叠加次数图，方便迭代；同时返回此次拼接的位置
     return canvas, offset_x - extend_left, offset_y - extend_top, overlap_count
@@ -131,7 +134,8 @@ def update_overlap_mask(overlap_mask, img, offset_x, offset_y, overlap_count, ma
     # 仅对叠加次数小于 max_overlaps 的区域进行更新，同步使用useful_mask
     valid_mask = overlap_count[offset_y:offset_y + h, offset_x:offset_x + w] < max_overlaps
     overlap_mask[offset_y:offset_y + h, offset_x:offset_x + w][valid_mask] += mask[valid_mask]
-    overlap_count[offset_y:offset_y + h, offset_x:offset_x + w][valid_mask] += get_useful_mask(img)[valid_mask]
+    #overlap_count[offset_y:offset_y + h, offset_x:offset_x + w][valid_mask] += get_useful_mask(img)[valid_mask]
+    overlap_count[offset_y:offset_y + h, offset_x:offset_x + w][valid_mask] += (img > 0)[valid_mask]
 
     return overlap_mask, overlap_count
 
@@ -436,15 +440,16 @@ def main(read_path, finger):
 
     # 显示并保存结果
     cv2.imshow("Final Stitched Image", result)
-    cv2.waitKey(10000)  # 留出10秒确认拼接好的图片
+    cv2.waitKey(1000)  # 留出10秒确认拼接好的图片
     cv2.destroyAllWindows()
     # 保存拼接结果
-    cv2.imwrite(f'../fingerPrint_images/registered_fingers/{finger}.jpg', result)
+    cv2.imwrite(f'./fingerPrint_images/images_to_generate/{finger}.jpg', result)
     print(f"成功拼接了 {len(stitched_images)} 张图像")
 
 
 if __name__ == '__main__':
-    path = "../fingerPrint_images/images_to_generate/"
+    print(os.getcwd())
+    path = "./fingerPrint_images/images_to_generate/"
     fingers = os.listdir(path)
     for finger in fingers:
-        main(path+finger, finger)
+        main(path + finger, finger)

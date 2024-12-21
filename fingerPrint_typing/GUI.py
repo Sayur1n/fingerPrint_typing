@@ -1,6 +1,6 @@
+import numpy as np
 import tkinter
 import cv2
-import numpy as np
 import os
 from PIL import Image, ImageTk
 from driver_fpc1020am import DriverFPC1020AM, typing
@@ -35,15 +35,16 @@ class GUI:
         self.is_typing = False
         self.is_typing_False_counts = 0
         self.temp_img = None
-        self.temp_img_judged = False
+        self.temp_img_judged = True
         self.img_array = np.zeros((192,192))
         self.driver = DriverFPC1020AM()
-        self.j = 0
 
         self.canvas = np.zeros((576, 576), dtype=np.float32)
         self.overlap_count = np.zeros_like(self.canvas, dtype=np.int32)
         self.overlap_mask = np.zeros_like(self.canvas)
         self.is_registering = False
+
+        self.typing_mode = False
 
         self.img_on_canvas = 0
         
@@ -93,16 +94,54 @@ class GUI:
     def start_showing(self):
         """启动实时指纹处理"""
         self.update_image()
+        if self.typing_mode:
+            self.typing()
         self.root.after(10, self.start_showing)  # 递归调用
 
     def clear_text(self):
         self.text.delete('1.0', 'end')
 
     def start_typing(self):
-        pass
+        self.typing_mode = True
+        self.finger_count = 0
+        self.finger1 = -1
+        self.finger2 = -1
+        self.is_typing = False
+        self.is_typing_False_counts = 0
+        self.temp_img = None
+        self.temp_img_judged = True
+        self.img_array = np.zeros((192,192))
+
+    
+    def typing(self):
+        if not self.is_typing and self.is_typing_False_counts >= 50 and not self.temp_img_judged:
+        #if patten and time.perf_counter() - time1 > 0.5 and not temp_img_judged:
+            finger = judge(self.temp_img)
+            self.temp_img_judged = True
+            if finger is not None:
+                #finger += 1
+                if self.finger_count == 0:
+                        self.finger1 = finger
+                        if self.finger1 == 0:
+                            self.finger_count = 2
+                            print(f'finger1 = {self.finger1} 空格')
+                        else:
+                            self.finger_count = 1
+                            print(f'finger1 = {self.finger1}请输入第二个指纹')
+                elif self.finger_count == 1:
+                    self.finger2 = finger
+                    self.finger_count = 2
+                    print(f'finger2 = {self.finger2}')
+                if self.finger_count == 2:
+                    letter, self.finger1, self.finger2 = typing(self.finger1, self.finger2)
+                    self.finger_count = 0
+                    if letter is not None:
+                        self.text.insert("end", letter)
+            else:
+                print('识别该指纹失败，请重新输入！')
 
     def stop_typing(self):
-        pass
+        self.typing_mode = False
 
     def update_image(self):
         img = self.driver.get_image()
@@ -110,6 +149,7 @@ class GUI:
             self.img_array = np.array(img, dtype=np.uint8)
             self.temp_img = self.img_array
             self.temp_img_judged = False
+            self.is_typing = True
             self.is_typing_False_counts = 0
         else:
             self.is_typing = False
@@ -133,13 +173,14 @@ class GUI:
         # Create a new window
         choose_window = tk.Toplevel(self.root)
         choose_window.title("Choose Finger to Register")
-        choose_window.geometry("300x300")
+        choose_window.geometry("300x350")
         
         # Create dropdown menus
         save_path_var = tk.StringVar()
         save_path_var.set('File1')
         hand_var = tk.StringVar()
         finger_var = tk.StringVar()
+        joint_var = tk.StringVar()
 
         # Hand type
         tk.Label(choose_window, text="选择指纹存档:").pack(pady=10)
@@ -149,31 +190,38 @@ class GUI:
 
         # Hand selection
         tk.Label(choose_window, text="选择手:").pack(pady=10)
-        hand_dropdown = ttk.Combobox(choose_window, textvariable=hand_var)
+        hand_dropdown = ttk.Combobox(choose_window, textvariable = hand_var)
         hand_dropdown['values'] = ('Left', 'Right')
         hand_dropdown.pack()
         
         # Finger selection
         tk.Label(choose_window, text="选择手指:").pack(pady=10)
-        finger_dropdown = ttk.Combobox(choose_window, textvariable=finger_var)
+        finger_dropdown = ttk.Combobox(choose_window, textvariable = finger_var)
         finger_dropdown['values'] = ('Thumb', 'Index', 'Middle', 'Ring', 'Pinky')
         finger_dropdown.pack()
         
+        # Finger selection
+        tk.Label(choose_window, text="选择关节:").pack(pady=10)
+        joint_dropdown = ttk.Combobox(choose_window, textvariable = joint_var)
+        joint_dropdown['values'] = ('1', '2')
+        joint_dropdown.pack()
+
         # Confirm button
         def confirm():
             save_path = save_path_var.get()
             hand = hand_var.get()
             finger = finger_var.get()
+            joint = joint_var.get()
             if hand and finger and save_path:
-                messagebox.showinfo("Selection", f"Selected {hand} {finger}")
+                messagebox.showinfo("Selection", f"Selected {hand} {finger} {joint}")
                 choose_window.destroy()
-                self.register(save_path, hand, finger)
+                self.register(save_path, hand, finger, joint)
             else:
-                messagebox.showerror("Error", "Please select hand, finger and save path")
+                messagebox.showerror("Error", "Please select hand, finger, joint and savepath")
         
         tk.Button(choose_window, text="Confirm", command=confirm).pack(pady=20)
     
-    def register(self, save_path, hand, finger):
+    def register(self, save_path, hand, finger, joint):
         
         # Create a new window
         register_window = tk.Toplevel(self.root)
@@ -206,8 +254,14 @@ class GUI:
                 os.makedirs(dir_path)
 
             img_to_save = crop_non_zero_area(self.canvas)
-            cv2.imwrite(f'{dir_path}/{hand}_{finger}.jpg', img_to_save)
+            if img_to_save is not None:
+                cv2.imwrite(f'{dir_path}/{hand}_{finger}_{joint}.jpg', img_to_save)
 
+            
+            self.img_on_canvas = 0
+            self.canvas = np.zeros((576, 576), dtype=np.float32)
+            self.overlap_count = np.zeros_like(self.canvas, dtype=np.int32)
+            self.overlap_mask = np.zeros_like(self.canvas)
             self.is_registering = False
             register_window.destroy()
             self.root.deiconify()
@@ -219,7 +273,6 @@ class GUI:
             self.overlap_mask = np.zeros_like(self.canvas)
             self.large_img_register_label.img_tk = None
             self.large_img_register_label.config(image=None)
-            messagebox.showinfo("Info", '已重置指纹录入')
 
 
         confirm_button = tk.Button(register_window, text='Confirm', font = self.font_settings, command = confirm)

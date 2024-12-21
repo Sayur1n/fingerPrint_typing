@@ -10,6 +10,7 @@ import cv2
 import os
 # from .image_stream_viewer import ImageStreamViewer
 from find_best_match import judge
+from get_letter import typing
 
 class DriverFPC1020AM:
     DRIVER_EXE_NAME = "DriverFPC1020AM.exe"
@@ -134,16 +135,6 @@ class DriverFPC1020AM:
 
     def __del__(self):
         self.stop_fpc1020am_server()
-
-def typing(finger1, finger2): # 右手食指到小指1-4 左手食指到小指5-8,去掉无名指则为5-7
-    letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
-    index = (finger1 - 1) * 7 + finger2 - 1
-    if index > 25 :
-        print('超出字母范围')
-    else:
-        print(letters[index], end='')
-    return 0, 0
-
 
 if __name__ == "__main__":
     t = DriverFPC1020AM()
