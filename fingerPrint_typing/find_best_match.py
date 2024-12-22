@@ -58,7 +58,7 @@ def locate_patch_in_panorama(patch_img, panorama_img):
     angle = np.arctan2(transform[1, 0], transform[0, 0]) * 180 / np.pi
 
     # 检查旋转角度和缩放约束
-    if (abs(angle) > 90 or  # 放宽旋转角度限制到±60度以内
+    if (abs(angle) > 180 or  # 放宽旋转角度限制到±60度以内
             abs(scale_x - 1.0) > 0.3 or  # 缩放限制在0.7-1.3内
             abs(scale_y - 1.0) > 0.3):
         # print(f"变换超出约束范围: 角度={angle:.1f}°, 缩放={scale_x:.2f}/{scale_y:.2f}")
@@ -147,19 +147,19 @@ def find_best_match(target_img, panorama_imgs):
     return best_image_index
 
 
-def judge(img):
+def judge(img, file_name):
     """
     此函数将目标图像与已有的库图像进行匹配
     若有匹配对象，返回最佳匹配对象的序列索引
     若无匹配对象，返回none
     """
     # Load target and panoramic images
-    # target_path = 'images_to_test/img_4.jpg'
-    # target_path = 'images_right_3/img_10.jpg'
-    img_path = './fingerPrint_images/registered_fingers/srz/'
-    #panorama_paths = os.listdir(img_path)
-    panorama_paths = ['right_1.jpg', 'right_2.jpg', 'right_3.jpg', 'right_4.jpg', 'right_5.jpg', 'left_2.jpg', 'left_3.jpg','left_5.jpg','right_index_2.jpg','right_ring_2.jpg']
-    # target_img = cv2.imread(target_path, 0)
+    #img_path = './fingerPrint_images/registered_fingers/srz/'
+    img_path = './fingerPrint_images/GUI_registered_fingers/' + file_name + '/'
+    
+    #panorama_paths = ['right_1.jpg', 'right_2.jpg', 'right_3.jpg', 'right_4.jpg', 'right_5.jpg', 'left_2.jpg', 'left_3.jpg','left_5.jpg','right_index_2.jpg','right_ring_2.jpg']
+    panorama_paths = ['Right_Index_1.jpg', 'Right_Middle_1.jpg', 'Right_Ring_1.jpg', 'Right_Pinky_1.jpg', 'Right_Index_2.jpg',  'Right_Middle_2.jpg',  'Right_Ring_2.jpg', 'Right_Thumb_1.jpg']
+    
     target_img = img
     panorama_imgs = [cv2.imread(img_path + path, 0) for path in panorama_paths]
 

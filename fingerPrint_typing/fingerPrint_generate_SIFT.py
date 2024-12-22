@@ -8,7 +8,7 @@ max_valid_pixel = 255
 
 def get_useful_mask(img):
     # max_pixel = np.max(img)7
-    useful_mask = img < max_valid_pixel - 10  # 去掉白色边界
+    useful_mask = img < max_valid_pixel - 3  # 去掉白色边界
     useful_mask = useful_mask.astype(np.uint8)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
     useful_mask = cv2.erode(useful_mask, kernel, iterations=1)

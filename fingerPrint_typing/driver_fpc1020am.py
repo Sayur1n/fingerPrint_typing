@@ -10,7 +10,6 @@ import cv2
 import os
 # from .image_stream_viewer import ImageStreamViewer
 from find_best_match import judge
-from get_letter import typing
 
 class DriverFPC1020AM:
     DRIVER_EXE_NAME = "DriverFPC1020AM.exe"

@@ -3,9 +3,11 @@ import tkinter
 import cv2
 import os
 from PIL import Image, ImageTk
-from driver_fpc1020am import DriverFPC1020AM, typing
+from driver_fpc1020am import DriverFPC1020AM
 from find_best_match import judge
 from fingerPrint_generate_SIFT import single_match, crop_non_zero_area
+from get_letter import typing_mode_1, typing_mode_2
+import time
 
 import tkinter as tk
 from tkinter import messagebox
@@ -43,10 +45,13 @@ class GUI:
         self.is_registering = False
 
         self.typing_mode = False
+        self.typing_file = 'File1'
 
         self.img_on_canvas = 0
         
         self.create_widgets()
+
+        self.time1 = 0
         
 
     def create_widgets(self):
@@ -57,6 +62,14 @@ class GUI:
         #filemenu = tk.Menu(menubar,tearoff=0)
         #menubar.add_cascade(label='File', menu=filemenu)
         #filemenu.add_command(label='Exit', command=self.root.quit)
+
+        self.file_var = tk.StringVar()
+        self.file_var.set('File1')
+
+        tk.Label(self.root, text="选择指纹存档:").pack(pady=10)
+        self.save_path_dropdown = ttk.Combobox(self.root, textvariable = self.file_var)
+        self.save_path_dropdown['values'] = ('File1', 'File2','File3','File4')
+        self.save_path_dropdown.pack()
 
         # 创建左侧上方较小的图片显示区域
         self.small_img_label = tk.Label(self.root, bg='white')
@@ -74,13 +87,28 @@ class GUI:
         self.stop_typing_button.place(x=600, y=210, width=80, height=50)
 
         self.clear_button = tk.Button(self.root, text='清空', font=font_settings, command=self.clear_text)
-        self.clear_button.place(x=600, y=520, width=80, height=50)
+        self.clear_button.place(x=600, y=620, width=80, height=50)
 
         self.control_frame = tk.Frame(self.root)
-        self.control_frame.place(x=250, y=500, width=300, height=200)
+        self.control_frame.place(x=200, y=600, width=400, height=100)
+
+        self.encoder_img_label = tk.Label(self.root)
+        self.encoder_img_label.place(x=200, y=250, width=350, height=350)
+        # Read and display the encoder image
+        encoder_img = cv2.imread('./fingerPrint_images/finger_encoder.png')
+        if encoder_img is not None:
+            encoder_img = cv2.cvtColor(encoder_img, cv2.COLOR_BGR2RGB)
+            encoder_img = Image.fromarray(encoder_img)
+            encoder_img = encoder_img.resize((350, 350))
+            encoder_img = ImageTk.PhotoImage(encoder_img)
+            self.encoder_img_label.img = encoder_img  # Keep a reference
+            self.encoder_img_label.config(image=encoder_img)
+
+
 
         self.info_label = tk.Label(self.root, text='', font = ('宋体', 20), bg='white')
-        self.info_label.place(x=250, y=450)
+        self.info_label.place(x=200, y=700)
+
         # 多行输入框    
         self.text = tk.Text(self.control_frame, wrap="word", font=("Arial", 20), width=30, height=8)
         self.text.pack(pady=10)
@@ -95,7 +123,7 @@ class GUI:
         """启动实时指纹处理"""
         self.update_image()
         if self.typing_mode:
-            self.typing()
+            self.typing_mode_2()
         self.root.after(10, self.start_showing)  # 递归调用
 
     def clear_text(self):
@@ -113,10 +141,10 @@ class GUI:
         self.img_array = np.zeros((192,192))
 
     
-    def typing(self):
-        if not self.is_typing and self.is_typing_False_counts >= 50 and not self.temp_img_judged:
-        #if patten and time.perf_counter() - time1 > 0.5 and not temp_img_judged:
-            finger = judge(self.temp_img)
+    def typing_mode_1(self):
+        #if not self.is_typing and self.is_typing_False_counts >= 50 and not self.temp_img_judged:
+        if not self.is_typing and time.perf_counter() - self.time1 > 0.5 and not self.temp_img_judged:
+            finger = judge(self.temp_img, self.typing_file)
             self.temp_img_judged = True
             if finger is not None:
                 #finger += 1
@@ -133,17 +161,51 @@ class GUI:
                     self.finger_count = 2
                     self.info_label.config(text=f'finger1 = {self.finger1}  finger2 = {self.finger2}')
                 if self.finger_count == 2:
-                    letter, self.finger1, self.finger2 = typing(self.finger1, self.finger2)
+                    letter, self.finger1, self.finger2 = typing_mode_1(self.finger1, self.finger2)
                     self.finger_count = 0
                     if letter is not None:
                         self.text.insert("end", letter)
+                    else:
+                        self.info_label.config(text='超出范围')
             else:
                 self.info_label.config(text='未识别到指纹')
+
+    def typing_mode_2(self):
+            #if not self.is_typing and self.is_typing_False_counts >= 50 and not self.temp_img_judged:
+            if not self.is_typing and time.perf_counter() - self.time1 > 0.5 and not self.temp_img_judged:
+                finger = judge(self.temp_img, self.typing_file)
+                self.temp_img_judged = True
+                if finger is not None:
+                    if finger == 7:
+                        self.finger_count = 0
+                        self.info_label.config(text='Delete')
+                        if self.text.get("1.0", "end-1c"):  # 检查文本是否非空
+                            self.text.delete("end-2c", "end-1c")
+                        return
+
+                    if self.finger_count == 0:
+                            self.finger1 = finger
+                            self.finger_count = 1
+                            self.info_label.config(text=f'finger1 = {self.finger1 + 1} 请输入第二个指纹')
+                    elif self.finger_count == 1:
+                        self.finger2 = finger
+                        self.finger_count = 2
+                        self.info_label.config(text=f'finger1 = {self.finger1 + 1}  finger2 = {self.finger2 + 1}')
+                    if self.finger_count == 2:
+                        letter, self.finger1, self.finger2 = typing_mode_2(self.finger1, self.finger2)
+                        self.finger_count = 0
+                        if letter is not None:
+                            self.text.insert("end", letter)
+                        else:
+                            self.info_label.config(text='超出范围')
+                else:
+                    self.info_label.config(text='未识别到指纹')
 
     def stop_typing(self):
         self.typing_mode = False
 
     def update_image(self):
+        self.typing_file = self.file_var.get()
         img = self.driver.get_image()
         if img is not None:
             self.img_array = np.array(img, dtype=np.uint8)
@@ -151,6 +213,7 @@ class GUI:
             self.temp_img_judged = False
             self.is_typing = True
             self.is_typing_False_counts = 0
+            self.time1 = time.perf_counter()
         else:
             self.is_typing = False
             self.is_typing_False_counts += 1
@@ -169,7 +232,7 @@ class GUI:
 
     def start_register(self):
         self.root.withdraw()
-
+        self.typing_mode = False
         # Create a new window
         choose_window = tk.Toplevel(self.root)
         choose_window.title("Choose Finger to Register")
@@ -249,7 +312,7 @@ class GUI:
                 register_result.config(text="匹配失败")
 
         def stop_register():
-            dir_path = f'./fingerPrint_images/register_test/{save_path}'
+            dir_path = f'./fingerPrint_images/GUI_registered_fingers/{save_path}'
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
 
