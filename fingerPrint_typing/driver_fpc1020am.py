@@ -10,6 +10,7 @@ import cv2
 import os
 # from .image_stream_viewer import ImageStreamViewer
 from find_best_match import judge
+from get_letter import typing_mode_1, typing_mode_2
 
 class DriverFPC1020AM:
     DRIVER_EXE_NAME = "DriverFPC1020AM.exe"
@@ -203,7 +204,7 @@ if __name__ == "__main__":
                         finger_count = 2
                         print(f'finger2 = {finger2}')
                     if finger_count == 2:
-                        finger1,finger2 = typing(finger1,finger2)
+                        finger1,finger2 = typing_mode_2(finger1,finger2)
                 else:
                     print('识别该指纹失败，请重新输入！')
             
