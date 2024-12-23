@@ -19,6 +19,8 @@ def locate_patch_in_panorama(patch_img, panorama_img):
         corners: Coordinates of the four corners if a match is found, else None.
         num_matches: Number of good matches found.
     """
+    if panorama_img is None:
+        return None, 0
     sift = cv2.SIFT_create(contrastThreshold=0.02)  # 默认值为 0.04
     kp1, des1 = sift.detectAndCompute(patch_img, None)
     kp2, des2 = sift.detectAndCompute(panorama_img, None)
@@ -161,11 +163,17 @@ def judge(img, file_name):
     panorama_paths = ['Right_Index_1.jpg', 'Right_Middle_1.jpg', 'Right_Ring_1.jpg', 'Right_Pinky_1.jpg', 'Right_Index_2.jpg',  'Right_Middle_2.jpg',  'Right_Ring_2.jpg', 'Right_Thumb_1.jpg']
     
     target_img = img
-    panorama_imgs = [cv2.imread(img_path + path, 0) for path in panorama_paths]
+    panorama_imgs = []
+    for path in panorama_paths:
+        img = cv2.imread(os.path.join(img_path, path), cv2.IMREAD_GRAYSCALE)
+        if img is not None:
+            panorama_imgs.append(img)
+        else:
+            panorama_imgs.append(None)
 
-    if target_img is None or any(img is None for img in panorama_imgs):
+    '''if target_img is None or any(img is None for img in panorama_imgs):
         print("Error reading images. Please check the file paths.")
-        return
+        return'''
 
     return find_best_match(target_img, panorama_imgs)
 
