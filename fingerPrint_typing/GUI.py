@@ -205,6 +205,7 @@ class GUI:
         self.typing_mode = False
 
     def update_image(self):
+        # 获取打字所用的指纹存档
         self.typing_file = self.file_var.get()
         img = self.driver.get_image()
         if img is not None:

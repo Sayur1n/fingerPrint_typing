@@ -7,8 +7,12 @@ max_valid_pixel = 255
 
 
 def get_useful_mask(img):
+    """
+    这个函数提取指纹图像中有用的区域，去掉白色边界
+    """
     # max_pixel = np.max(img)
     useful_mask = img < max_valid_pixel - 3  # 去掉白色边界
+    # 腐蚀
     useful_mask = useful_mask.astype(np.uint8)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
     useful_mask = cv2.erode(useful_mask, kernel, iterations=1)
@@ -81,12 +85,12 @@ def add_to_canvas(canvas, img, offset_x, offset_y, overlap_count, max_overlaps=3
     overlap_region = overlap_count[offset_y:offset_y + h, offset_x:offset_x + w]
 
     # 仅对叠加次数小于 max_overlaps 的区域进行操作                                      ## 尝试在这里去掉白色无用边界
-    #useful_mask = get_useful_mask(img)  # 去掉白色边界的mask
+    useful_mask = get_useful_mask(img)  # 去掉白色边界的mask
     valid_mask = overlap_region < max_overlaps
-    overlap_mask = valid_mask & (target_region > 0) & (img > 0) & get_useful_mask(img)
-    non_overlap_mask = valid_mask & (target_region == 0) & (img > 0) & get_useful_mask(img)
-    #overlap_mask = valid_mask & (target_region > 0) & useful_mask
-    #non_overlap_mask = valid_mask & (target_region == 0) & useful_mask
+    overlap_mask = valid_mask & (target_region > 0) & (img > 0) & useful_mask
+    non_overlap_mask = valid_mask & (target_region == 0) & (img > 0) & useful_mask
+    #overlap_mask = valid_mask & (target_region > 0) & (img > 0)
+    #non_overlap_mask = valid_mask & (target_region == 0) & (img > 0)
 
     # 在重叠区域使用加权混合
     if np.any(overlap_mask):
@@ -130,7 +134,7 @@ def match_with_canvas(canvas, img2, min_matches=5):
     valid_mask, canvas_x, canvas_y, (canvas_w, canvas_h) = extract_valid_region(canvas)
     if valid_mask is None:
         return None, (0, 0)
-
+    # 感兴趣区域
     canvas_roi = canvas[canvas_y:canvas_y + canvas_h, canvas_x:canvas_x + canvas_w]
 
     # 创建SIFT特征点检测器
